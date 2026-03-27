@@ -129,3 +129,39 @@ Senso ribalta le classiche KPI degli e-commere per dare priorità a:
 - ✅ **% di suggerimenti rifiutati ("Non ora"):** Utilizzata coma spia diagnostica. Rifiuti alti = bassa rilevanza.
 - ✅ **Tasso di reso post-acquisto:** Misura diretta della qualità del suggerimento.
 - ✅ **Frequenza d'acquisto per utente:** Monitorata costantemente alla ricerca di early-warning per acquisti compulsivi.
+
+---
+
+## 💻 Tech Stack (Prototipo Hackathon)
+
+*   **Frontend:** Next.js (App Router), React, Tailwind CSS per un'esperienza fluida e una UI normalizzata.
+*   **Backend & LLM Core:** Node.js, Integrazione nativa con **Claude API / OpenAI GPT-4** per il motore conversazionale e i continui trigger della "Soglia Etica".
+*   **Database & Auth:** Supabase (PostgreSQL) per la gestione sicura e trasparente della Carta d'Identità e dell'auth.
+*   **Integrazioni (API):** Google Calendar API per simulare la lettura proattiva degli eventi futuri; Mock Data Generator per Apple Salute e Note nel prototipo.
+
+---
+
+## 🚀 Come eseguire in locale (Getting Started)
+
+1. **Clona il repository:**
+   ```bash
+   git clone https://github.com/CapoHHub/byte-rush.git
+   cd byte-rush
+   ```
+
+2. **Installa le dipendenze:**
+   ```bash
+   npm install
+   ```
+
+3. **Configura le variabili d'ambiente:**
+   Copia il template fornito e inserisci le tue chiavi API (LLM e Supabase):
+   ```bash
+   cp .env.example .env.local
+   ```
+
+4. **Avvia il server di sviluppo:**
+   ```bash
+   npm run dev
+   ```
+   L'app sarà disponibile all'indirizzo `http://localhost:3000`.
