@@ -63,6 +63,46 @@ Il sistema è basato su un flusso architetturale che mette la privacy e la logic
 
 ---
 
+## Archetipo
+
+L’**archetipo** di Senso non è “chatbot che vende”, ma **assistente relazionale con economia secondaria**. È il pattern che vogliamo replicare in ogni interazione coerente col prodotto.
+
+| Fase | Cosa succede | Principio |
+| :--- | :--- | :--- |
+| **1. Relazione** | L’utente usa l’assistente per compiti quotidiani (pianificazione, note, benessere) senza obiettivo d’acquisto. | La conversazione è il prodotto primario. |
+| **2. Contesto integrato** | Calendario, note e altre fonti (con consenso) arricchiscono il contesto solo quando servono a risposte utili. | Minimo necessario, spiegato, revocabile. |
+| **3. Segnale d’intenzione** | Conversazione + dati integrati + storico indicano un bisogno concreto (non una curiosità passeggera). | Nessun suggerimento commerciale “a freddo”. |
+| **4. Soglia etica** | Valutazione esplicita (stato emotivo, orario, acquisti recenti, saturazione suggerimenti). | Default: **non** proporre se c’è ambiguità. |
+| **5. Invito contestuale** | Messaggio naturale + azione discreta (es. “Esplora opzioni”); ignorare / “non ora” / procedere sono scelte equipollenti. | Trasparenza e rispetto del rifiuto. |
+| **6. Store normalizzato** | UI identica per tutti i brand; badge *Perché te lo mostriamo*; CTA **Acquista** e **Non ora** con parità visiva; niente urgenza artificiale. | Equità tra brand e autonomia dell’utente. |
+| **7. Post-acquisto in chat** | Ordine, spedizione, resi e feedback restano nel filo della conversazione; la Carta d’Identità si aggiorna in modo visibile. | Fidiucia come ciclo chiuso, non come funnel. |
+
+In sintesi: **fiducia → contesto → gate → invito → store neutro → follow-up**. Lo shopping è la **conseguenza** di questo arco, non il suo centro.
+
+```mermaid
+flowchart TB
+  U[Utente in chat]
+  A[Assistente: compiti quotidiani]
+  C[Contesto integrato opzionale]
+  S[Segnali intenzione]
+  E{Soglia etica}
+  I[Invito con spiegazione]
+  P[Pop-up store normalizzato]
+  F[Post-acquisto e profilo visibile]
+
+  U --> A
+  A --> C
+  C --> S
+  S --> E
+  E -->|rosso| A
+  E -->|verde| I
+  I --> P
+  P --> F
+  F --> A
+```
+
+---
+
 ## 🛡️ Etica by Design: Criticità e Soluzioni
 
 Il nostro recommendation engine integra una **Soglia Etica** intrinseca per garantire che la piattaforma non diventi mai un hub di manipolazione o di pressione all'acquisto.
@@ -115,7 +155,7 @@ Un ambiente visivo equo, pulito e uguale per tutti i brand. Sono severamente vie
 * ❌ Assenza totale di scarsità artificiale ("*Solo 1 pezzo rimasto!*")
 * ❌ Nessun cross-sell o upsell aggressivo
 
-Sono invece in evidenza: Immagine pulita del prodotto, prezzo, descrizione essenziale ed un badge speciale *"Perché te lo mostriamo"*.
+Sono invece in evidenza: immagine del prodotto, prezzo, descrizione essenziale (no superlative, no urgenza), badge *"Perché te lo mostriamo"* e due CTA con **parità visiva**: **Acquista** / **Non ora**.
 
 ### 6. Relazione Post-Acquisto
 Senso si occupa del post-vendita all'interno della medesima chat (tracking, resi fluidi, e un genuino *"Come sono andate le prime uscite con le scarpe nuove?"*). Il loop si chiude arricchendo passivamente e trasparentemente la Carta d'Identità dell'utente.
@@ -132,12 +172,18 @@ Senso ribalta le classiche KPI degli e-commere per dare priorità a:
 
 ---
 
-## 💻 Tech Stack (Prototipo Hackathon)
+## 💻 Tech stack (repository attuale vs. target)
 
-*   **Frontend:** Next.js (App Router), React, Tailwind CSS per un'esperienza fluida e una UI normalizzata.
-*   **Backend & LLM Core:** Node.js, Integrazione nativa con **Claude API / OpenAI GPT-4** per il motore conversazionale e i continui trigger della "Soglia Etica".
-*   **Database & Auth:** Supabase (PostgreSQL) per la gestione sicura e trasparente della Carta d'Identità e dell'auth.
-*   **Integrazioni (API):** Google Calendar API per simulare la lettura proattiva degli eventi futuri; Mock Data Generator per Apple Salute e Note nel prototipo.
+**Implementato in questo repo (prototipo UI):**
+
+- **Frontend:** Vite, React 18, TypeScript, Tailwind CSS 4, Motion, Lucide, Sonner.
+- **Logica demo:** conversazione e cataloghi sono **mock** in memoria (keyword → risposta + `PopupStore`); non c’è ancora LLM né backend.
+
+**Obiettivo architetturale (allineato all’archetipo):**
+
+- **LLM core** con memoria conversazionale e profilo utente; **recommendation engine** con soglia etica.
+- **Integrazioni:** calendario, note, reminder (OAuth2, scope minimi); catalogo prodotti via API (es. Shopify / custom).
+- **Persistenza e Carta d’Identità:** es. backend + database e auth conformi a export GDPR e “dimentica questo dato”.
 
 ---
 
@@ -154,14 +200,15 @@ Senso ribalta le classiche KPI degli e-commere per dare priorità a:
    npm install
    ```
 
-3. **Configura le variabili d'ambiente:**
-   Copia il template fornito e inserisci le tue chiavi API (LLM e Supabase):
-   ```bash
-   cp .env.example .env.local
-   ```
-
-4. **Avvia il server di sviluppo:**
+3. **Avvia il server di sviluppo:**
    ```bash
    npm run dev
    ```
-   L'app sarà disponibile all'indirizzo `http://localhost:3000`.
+   L’app Vite è in genere su `http://localhost:5173` (porta indicata nel terminale).
+
+4. **Build di produzione:**
+   ```bash
+   npm run build
+   ```
+
+Quando aggiungerai backend e LLM, documenta qui variabili d’ambiente (es. `.env.example`) e URL del servizio.
