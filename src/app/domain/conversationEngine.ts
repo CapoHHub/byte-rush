@@ -1,19 +1,18 @@
-import { getProductsByCategory } from "./catalog";
-import { getIntegrationContext } from "./mockIntegrations";
 import { evaluateEthicalGate } from "./ethicalGate";
 import { sendToGemini, isGeminiAvailable, resetGeminiChat } from "./geminiService";
+import type { Product } from "../components/PopupStore";
 import type { MessageDTO, PurchaseRecord, SuggestionEvent, ConnectedIntegrations, IntegrationSource, CommercialCategory } from "./types";
 
 export interface EngineInput {
   userText: string;
   userTurnCount: number;
-  commercialShownThisSession: boolean;
   now: Date;
   purchases: PurchaseRecord[];
   monthlyBudgetEUR: number | null;
   spendThisMonthEUR: number;
   connectedIntegrations: ConnectedIntegrations;
   nightProtectionEnabled: boolean;
+  getProductsByCategory: (cat: CommercialCategory) => Product[];
 }
 
 export interface EngineResult {
@@ -57,7 +56,6 @@ export async function runAssistantTurn(input: EngineInput): Promise<EngineResult
     if (gemini.commercialCategory) {
       const commercialResult = handleCommercialFromGemini(
         gemini.commercialCategory,
-        gemini.text,
         input,
       );
 
@@ -66,7 +64,7 @@ export async function runAssistantTurn(input: EngineInput): Promise<EngineResult
           const storeMessage: MessageDTO = {
             id: newId(),
             role: "assistant",
-            content: commercialResult.storeIntro,
+            content: commercialResult.storeIntro!,
             showStoreButton: true,
             storeProducts: commercialResult.products,
             storeTitle: commercialResult.storeTitle,
@@ -74,7 +72,7 @@ export async function runAssistantTurn(input: EngineInput): Promise<EngineResult
             sources: buildActiveSources(input.connectedIntegrations),
           };
           messages.push(storeMessage);
-          events.push({ id: newId(), at: input.now.getTime(), title: commercialResult.storeTitle, action: "shown" });
+          events.push({ id: newId(), at: input.now.getTime(), title: commercialResult.storeTitle!, action: "shown" });
           commercialOffered = true;
         } else {
           events.push({
@@ -102,7 +100,7 @@ export async function runAssistantTurn(input: EngineInput): Promise<EngineResult
 
 interface CommercialDecision {
   allowed: boolean;
-  products?: import("../components/PopupStore").Product[];
+  products?: Product[];
   storeTitle?: string;
   storeIntro?: string;
   blockCode?: string;
@@ -110,10 +108,9 @@ interface CommercialDecision {
 
 function handleCommercialFromGemini(
   category: CommercialCategory,
-  _geminiText: string,
   input: EngineInput,
 ): CommercialDecision | null {
-  const products = getProductsByCategory(category);
+  const products = input.getProductsByCategory(category);
   if (products.length === 0) return null;
 
   const minPrice = Math.min(...products.map((p) => p.price));
@@ -122,7 +119,6 @@ function handleCommercialFromGemini(
     userText: input.userText,
     now: input.now,
     userTurnCount: input.userTurnCount,
-    commercialAlreadyShownThisSession: input.commercialShownThisSession,
     category,
     purchases: input.purchases,
     monthlyBudgetEUR: input.monthlyBudgetEUR,

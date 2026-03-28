@@ -4,6 +4,7 @@ import { useState } from "react";
 
 interface OnboardingProps {
   onComplete: (userData: UserPreferences) => void;
+  initialName?: string;
 }
 
 export interface UserPreferences {
@@ -24,9 +25,9 @@ export const INTERESTS_OPTIONS = [
   { id: "travel", label: "Viaggi", emoji: "✈️" },
 ];
 
-export function Onboarding({ onComplete }: OnboardingProps) {
+export function Onboarding({ onComplete, initialName }: OnboardingProps) {
   const [step, setStep] = useState(0);
-  const [name, setName] = useState("");
+  const [name, setName] = useState(initialName ?? "");
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
 
   const handleInterestToggle = (interestId: string) => {

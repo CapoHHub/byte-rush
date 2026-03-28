@@ -2,7 +2,7 @@ import type { CommercialCategory, EthicalDecision, PurchaseRecord } from "./type
 
 const NIGHT_START_HOUR = 23;
 const NIGHT_END_HOUR = 6;
-const MIN_USER_TURNS_BEFORE_COMMERCE = 3;
+const MIN_USER_TURNS_BEFORE_COMMERCE = 1;
 const MS_30_DAYS = 30 * 24 * 60 * 60 * 1000;
 
 const EMOTION_HINTS = [
@@ -53,7 +53,6 @@ export function evaluateEthicalGate(input: {
   userText: string;
   now: Date;
   userTurnCount: number;
-  commercialAlreadyShownThisSession: boolean;
   category: CommercialCategory;
   purchases: PurchaseRecord[];
   monthlyBudgetEUR: number | null;
@@ -85,15 +84,6 @@ export function evaluateEthicalGate(input: {
       code: "EARLY_SESSION",
       userFacingHint:
         "Prima di proporti qualcosa da acquistare preferisco conoscerti meglio in chat. Continuiamo a parlare?",
-    };
-  }
-
-  if (input.commercialAlreadyShownThisSession) {
-    return {
-      allow: false,
-      code: "SESSION_CAP",
-      userFacingHint:
-        "In questa sessione ho già mostrato un suggerimento commerciale — così evitiamo pressioni. Per il resto sono tutto orecchi.",
     };
   }
 

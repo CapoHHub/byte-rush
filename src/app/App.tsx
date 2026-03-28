@@ -11,16 +11,24 @@ import {
   Bell,
   Link as LinkIcon,
   X,
+  LogOut,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { ChatMessage } from "./components/ChatMessage";
 import { PopupStore, Product } from "./components/PopupStore";
+import { ProductCardStrip } from "./components/ProductCardStrip";
 import { EmotionalID, type EmotionalIDGoal } from "./components/EmotionalID";
 import { Onboarding, UserPreferences, INTERESTS_OPTIONS } from "./components/Onboarding";
+import { AuthPage } from "./components/AuthPage";
+import { CompanyDashboard } from "./components/CompanyDashboard";
+import { useAuth } from "./context/AuthContext";
+import type { CompanyUser } from "./lib/apiService";
 import { toast, Toaster } from "sonner";
 import { runAssistantTurn, resetGeminiChat } from "./domain/conversationEngine";
+import { useCatalog } from "./context/ProductCatalogContext";
 import { countPurchasesLastDays } from "./domain/ethicalGate";
 import { getIntegrationContext, buildProactiveSummary } from "./domain/mockIntegrations";
+import { api } from "./lib/apiService";
 import type {
   CommercialCategory,
   PurchaseRecord,
@@ -32,6 +40,7 @@ import type { SensoStorageSnapshot } from "./lib/sensoStorage";
 import {
   loadSensoSnapshot,
   saveSensoSnapshot,
+  clearSensoStorage,
   spendThisCalendarMonthEUR,
   appendSuggestions,
   mergeInferredInterests,
@@ -80,7 +89,40 @@ const INTEGRATION_META: Record<keyof ConnectedIntegrations, { icon: typeof Calen
 };
 
 export default function App() {
+  const { user, isGuest, loading: authLoading, logout } = useAuth();
+
+  if (authLoading) {
+    return (
+      <div className="fixed inset-0 bg-gradient-to-br from-[#f5f0eb] via-[#ede5dc] to-[#e8dfd5] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#1a1a2e] to-[#3a3a5e] flex items-center justify-center shadow-lg">
+            <Sparkles size={20} className="text-white" />
+          </div>
+          <p className="text-[#8e8e93] text-sm">Caricamento...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user && !isGuest) {
+    return <AuthPage />;
+  }
+
+  if (user && user.role === "company") {
+    return <CompanyDashboard company={user as CompanyUser} logout={logout} />;
+  }
+
+  return <AppChat user={user} logout={logout} />;
+}
+
+function AppChat({ user, logout: rawLogout }: { user: { id: number; email: string; nome: string; cognome: string; role?: string } | null; logout: () => void }) {
+  const { allProducts, getByCategory } = useCatalog();
   const storageInitRef = useRef(typeof window !== "undefined" ? loadSensoSnapshot() : null);
+
+  const logout = useCallback(() => {
+    clearSensoStorage();
+    rawLogout();
+  }, [rawLogout]);
 
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(() => !!storageInitRef.current?.onboardingCompleted);
   const [profile, setProfile] = useState<SensoStorageSnapshot>(() => storageInitRef.current ?? emptyProfile());
@@ -99,20 +141,58 @@ export default function App() {
   const [storeCategory, setStoreCategory] = useState<CommercialCategory | null>(null);
   const [emotionalIDOpen, setEmotionalIDOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [authPromptOpen, setAuthPromptOpen] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const prevUserIdRef = useRef<number | null>(user?.id ?? null);
+  useEffect(() => {
+    if (user) {
+      setAuthPromptOpen(false);
+      if (prevUserIdRef.current !== user.id) {
+        const snap = loadSensoSnapshot();
+        if (!snap || !snap.onboardingCompleted) {
+          setHasCompletedOnboarding(false);
+          setProfile(emptyProfile());
+          setUserPreferences(null);
+          setMessages([]);
+        }
+      }
+      prevUserIdRef.current = user.id;
+    }
+  }, [user]);
+
   const userTurnCountRef = useRef(0);
-  const commercialShownRef = useRef(false);
   const profileRef = useRef(profile);
   profileRef.current = profile;
   const proactiveSentRef = useRef(false);
 
   const spendMonth = useMemo(() => spendThisCalendarMonthEUR(profile.purchases, new Date()), [profile.purchases]);
 
+  const syncDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveProfile = useCallback((snapshot: SensoStorageSnapshot) => {
+    saveSensoSnapshot(snapshot);
+    if (!user) return;
+    if (syncDebounceRef.current) clearTimeout(syncDebounceRef.current);
+    syncDebounceRef.current = setTimeout(() => {
+      api.user.settings.update({
+        settings: {
+          nightProtectionEnabled: snapshot.nightProtectionEnabled,
+          monthlyBudgetEUR: snapshot.monthlyBudgetEUR,
+          reflectionForPurchaseCountShown: snapshot.reflectionForPurchaseCountShown,
+          connectedIntegrations: snapshot.connectedIntegrations,
+          onboardingCompleted: snapshot.onboardingCompleted,
+          guestMode: snapshot.guestMode,
+        },
+        onboardingInterests: snapshot.onboardingInterests,
+      }).catch((err) => console.error("Settings sync failed:", err));
+    }, 500);
+  }, [user]);
+
   // --- Build welcome message based on profile & integrations ---
   const buildWelcomeMessages = useCallback((prefs: UserPreferences | null, prof: SensoStorageSnapshot): Message[] => {
     const now = new Date();
-    const name = prefs?.name || prof.userName || "Ospite";
+    const name = user?.nome || prefs?.name || prof.userName || "Ospite";
     const hour = now.getHours();
     const greeting = hour < 12 ? "Buongiorno" : hour < 18 ? "Buon pomeriggio" : "Buonasera";
     const isGuest = prefs?.guestMode;
@@ -166,7 +246,7 @@ export default function App() {
   const logSuggestion = useCallback((events: Parameters<typeof appendSuggestions>[1]) => {
     setProfile((p) => {
       const n = { ...p, suggestionHistory: appendSuggestions(p.suggestionHistory, events) };
-      saveSensoSnapshot(n);
+      saveProfile(n);
       return n;
     });
   }, []);
@@ -180,12 +260,11 @@ export default function App() {
       guestMode: userData.guestMode ?? false,
       onboardingCompleted: true,
     };
-    saveSensoSnapshot(next);
+    saveProfile(next);
     setProfile(next);
     setUserPreferences(userData);
     setHasCompletedOnboarding(true);
     userTurnCountRef.current = 0;
-    commercialShownRef.current = false;
     proactiveSentRef.current = false;
     resetGeminiChat();
     setMessages(buildWelcomeMessages(userData, next));
@@ -198,7 +277,7 @@ export default function App() {
         ...p,
         connectedIntegrations: { ...p.connectedIntegrations, [key]: true },
       };
-      saveSensoSnapshot(n);
+      saveProfile(n);
       return n;
     });
     const meta = INTEGRATION_META[key];
@@ -223,7 +302,7 @@ export default function App() {
         ...p,
         connectedIntegrations: { ...p.connectedIntegrations, [key]: !wasConnected },
       };
-      saveSensoSnapshot(n);
+      saveProfile(n);
       return n;
     });
   };
@@ -245,16 +324,23 @@ export default function App() {
       const result = await runAssistantTurn({
         userText: text,
         userTurnCount: userTurnCountRef.current,
-        commercialShownThisSession: commercialShownRef.current,
         now: turnNow,
         purchases: pNow.purchases,
         monthlyBudgetEUR: pNow.monthlyBudgetEUR,
         spendThisMonthEUR: spendThisCalendarMonthEUR(pNow.purchases, turnNow),
         connectedIntegrations: pNow.connectedIntegrations,
         nightProtectionEnabled: pNow.nightProtectionEnabled,
+        getProductsByCategory: getByCategory,
       });
 
-      if (result.commercialOffered) commercialShownRef.current = true;
+      if (result.inferredInterest && user) {
+        api.user.interests.add({
+          key: result.inferredInterest.label.toLowerCase().replace(/\s+/g, "_"),
+          label: result.inferredInterest.label,
+          source: "inferred",
+          snippet: result.inferredInterest.snippet,
+        }).catch((err) => console.error("Failed to sync interest:", err));
+      }
 
       setProfile((p) => {
         let n = { ...p };
@@ -264,7 +350,7 @@ export default function App() {
         if (result.inferredInterest) {
           n = { ...n, inferredInterests: mergeInferredInterests(p.inferredInterests, result.inferredInterest.label, result.inferredInterest.snippet, turnNow.getTime()) };
         }
-        saveSensoSnapshot(n);
+        saveProfile(n);
         return n;
       });
 
@@ -305,6 +391,11 @@ export default function App() {
   };
 
   const handleBuy = (product: Product, size?: string) => {
+    if (!user) {
+      setStoreOpen(false);
+      setAuthPromptOpen(true);
+      return;
+    }
     const category = storeCategory ?? "tech";
     if (profile.monthlyBudgetEUR != null && spendMonth + product.price > profile.monthlyBudgetEUR) {
       toast.message("Budget mensile", { description: `Supereresti il limite di €${profile.monthlyBudgetEUR.toFixed(0)}.` });
@@ -316,6 +407,15 @@ export default function App() {
     toast.success(`${product.name}${sizeText} — ordine registrato (demo).`);
 
     const purchase: PurchaseRecord = { id: newId(), productId: product.id, category, name: product.name, priceEUR: product.price, at: Date.now() };
+
+    if (user) {
+      api.user.purchases.add({
+        productId: Number(product.id) || undefined,
+        category,
+        name: product.name,
+        priceEUR: product.price,
+      }).catch((err) => console.error("Failed to sync purchase:", err));
+    }
 
     setProfile((p) => {
       const purchases = [...p.purchases, purchase];
@@ -330,7 +430,7 @@ export default function App() {
         n.reflectionForPurchaseCountShown = 3;
         queueMicrotask(() => setMessages((prev) => [...prev, { id: newId(), role: "assistant", content: REFLECTION_COPY, timestamp: formatTime(new Date()) }]));
       }
-      saveSensoSnapshot(n);
+      saveProfile(n);
       return n;
     });
 
@@ -407,7 +507,7 @@ export default function App() {
 
   // --- Render ---
   if (!hasCompletedOnboarding) {
-    return <Onboarding onComplete={handleOnboardingComplete} />;
+    return <Onboarding onComplete={handleOnboardingComplete} initialName={user?.nome} />;
   }
 
   const connectedCount = Object.values(profile.connectedIntegrations).filter(Boolean).length;
@@ -433,9 +533,18 @@ export default function App() {
               )}
             </div>
           </div>
-          <button type="button" className="p-2 -mr-1 rounded-xl hover:bg-[#f3f3f5] active:scale-95 transition-all" onClick={() => setEmotionalIDOpen(true)}>
-            <User size={20} className="text-[#1a1a2e]" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              className="p-2 rounded-xl hover:bg-[#f3f3f5] active:scale-95 transition-all relative"
+              onClick={() => openStore(allProducts, "Tutti i prodotti")}
+            >
+              <ShoppingBag size={19} className="text-[#1a1a2e]" />
+            </button>
+            <button type="button" className="p-2 -mr-1 rounded-xl hover:bg-[#f3f3f5] active:scale-95 transition-all" onClick={() => setEmotionalIDOpen(true)}>
+              <User size={20} className="text-[#1a1a2e]" />
+            </button>
+          </div>
         </div>
 
         {/* Chat area */}
@@ -454,17 +563,25 @@ export default function App() {
                 </button>
               )}
 
-              {/* Store button */}
+              {/* Product cards + Store button */}
               {msg.showStoreButton && msg.storeProducts && (
-                <div className="mt-3 flex flex-col gap-2">
-                  <button
+                <div className="mt-4 flex flex-col gap-2">
+                  <ProductCardStrip
+                    products={msg.storeProducts}
+                    onCardClick={() => openStore(msg.storeProducts!, msg.storeTitle || "Store", msg.storeCategory)}
+                  />
+                  <motion.button
                     type="button"
+                    initial={{ scale: 0.95 }}
+                    animate={{ scale: 1 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.97 }}
                     onClick={() => openStore(msg.storeProducts!, msg.storeTitle || "Store", msg.storeCategory)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/80 border border-[#e5e5ea] text-[#1a1a2e] text-sm w-full justify-center hover:bg-[#f3f3f5] transition-colors"
+                    className="flex items-center gap-2.5 px-5 py-3 rounded-xl bg-gradient-to-r from-[#1a1a2e] to-[#3a3a5e] text-white text-sm w-full justify-center shadow-lg shadow-[#1a1a2e]/20 font-medium"
                   >
-                    <ShoppingBag size={15} />
+                    <ShoppingBag size={16} />
                     Esplora opzioni
-                  </button>
+                  </motion.button>
                   <button
                     type="button"
                     onClick={() => {
@@ -572,7 +689,55 @@ export default function App() {
                 })}
               </div>
 
-              <div className="px-5 py-4 border-t border-[#e5e5ea]">
+              <div className="px-5 py-4 border-t border-[#e5e5ea] space-y-3">
+                {user ? (
+                  <>
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-[#f3f3f5]">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#1a1a2e] to-[#3a3a5e] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                        {user.nome.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-[#1a1a2e] font-medium truncate">{user.nome} {user.cognome}</p>
+                        <p className="text-[11px] text-[#8e8e93] truncate">{user.email}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={logout}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-[#e5e5ea] text-[#8e8e93] text-sm hover:bg-[#f3f3f5] transition-colors"
+                    >
+                      <LogOut size={14} />
+                      Esci
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-[#f3f3f5]">
+                      <div className="w-8 h-8 rounded-full bg-[#e5e5ea] flex items-center justify-center text-[#8e8e93] text-xs font-bold flex-shrink-0">
+                        <User size={14} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-[#1a1a2e] font-medium">Ospite</p>
+                        <p className="text-[11px] text-[#8e8e93]">Crea un account per salvare i dati</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setSidebarOpen(false); setAuthPromptOpen(true); }}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-br from-[#1a1a2e] to-[#3a3a5e] text-white text-sm font-medium shadow-md shadow-[#1a1a2e]/15 active:scale-[0.98] transition-transform"
+                    >
+                      <User size={14} />
+                      Crea account o accedi
+                    </button>
+                    <button
+                      type="button"
+                      onClick={logout}
+                      className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-[#aeaeb2] text-xs hover:text-[#8e8e93] transition-colors"
+                    >
+                      Torna al login
+                    </button>
+                  </>
+                )}
                 <p className="text-[11px] text-[#aeaeb2] leading-relaxed">
                   🔒 Prototipo: i dati sono mock locali. In produzione: OAuth2 per servizio, scope minimi, read-only.
                 </p>
@@ -596,23 +761,33 @@ export default function App() {
         inferredInterests={profile.inferredInterests}
         suggestionHistory={profile.suggestionHistory}
         onForgetInference={(id) => {
-          setProfile((p) => { const n = { ...p, inferredInterests: p.inferredInterests.filter((x) => x.id !== id) }; saveSensoSnapshot(n); return n; });
+          setProfile((p) => { const n = { ...p, inferredInterests: p.inferredInterests.filter((x) => x.id !== id) }; saveProfile(n); return n; });
         }}
         onForgetSuggestion={(id) => {
-          setProfile((p) => { const n = { ...p, suggestionHistory: p.suggestionHistory.filter((x) => x.id !== id) }; saveSensoSnapshot(n); return n; });
+          setProfile((p) => { const n = { ...p, suggestionHistory: p.suggestionHistory.filter((x) => x.id !== id) }; saveProfile(n); return n; });
         }}
         onExportGdpr={handleExportGdpr}
         monthlyBudgetEUR={profile.monthlyBudgetEUR}
         onBudgetChange={(v) => {
-          setProfile((p) => { const n = { ...p, monthlyBudgetEUR: v }; saveSensoSnapshot(n); return n; });
+          setProfile((p) => { const n = { ...p, monthlyBudgetEUR: v }; saveProfile(n); return n; });
         }}
         spendThisMonthEUR={spendMonth}
         goals={emotionalGoals}
         nightProtectionEnabled={profile.nightProtectionEnabled}
         onNightProtectionToggle={() => {
-          setProfile((p) => { const n = { ...p, nightProtectionEnabled: !p.nightProtectionEnabled }; saveSensoSnapshot(n); return n; });
+          setProfile((p) => { const n = { ...p, nightProtectionEnabled: !p.nightProtectionEnabled }; saveProfile(n); return n; });
         }}
       />
+
+      {/* Auth prompt for guest users */}
+      {authPromptOpen && (
+        <AuthPage
+          asModal
+          onClose={() => setAuthPromptOpen(false)}
+          title="Crea un account"
+          subtitle="Per acquistare e salvare i tuoi dati tra le sessioni"
+        />
+      )}
     </div>
   );
 }
