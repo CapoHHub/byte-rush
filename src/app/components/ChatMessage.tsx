@@ -33,7 +33,7 @@ export function ChatMessage({ role, content, children, timestamp, sources }: Cha
         </div>
       )}
 
-      <div className="max-w-[80%] flex flex-col gap-1">
+      <div className="max-w-[85%] md:max-w-[75%] lg:max-w-[65%] flex flex-col gap-1">
         <div
           className={`px-4 py-3 ${
             isUser

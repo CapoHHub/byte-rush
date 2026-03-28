@@ -513,42 +513,45 @@ function AppChat({ user, logout: rawLogout }: { user: { id: number; email: strin
   const connectedCount = Object.values(profile.connectedIntegrations).filter(Boolean).length;
 
   return (
-    <div className="size-full min-h-[100dvh] bg-gradient-to-br from-[#f5f0eb] via-[#ede5dc] to-[#e8dfd5] flex items-center justify-center p-0 lg:p-6">
+    <div className="size-full min-h-[100dvh] flex flex-col bg-white">
       <Toaster position="top-center" richColors />
 
-      <div className="w-full min-h-[100dvh] lg:min-h-0 lg:h-[min(92vh,820px)] max-w-[560px] lg:max-w-[560px] mx-auto bg-white flex flex-col overflow-hidden lg:rounded-3xl lg:shadow-2xl lg:border lg:border-black/5">
+      <div className="w-full min-h-[100dvh] bg-white flex flex-col overflow-hidden flex-1">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 bg-gradient-to-r from-white to-[#fafafa] border-b border-[#f0f0f0]">
-          <button type="button" className="p-2 -ml-1 rounded-xl hover:bg-[#f3f3f5] active:scale-95 transition-all" onClick={() => setSidebarOpen(true)}>
-            <Menu size={20} className="text-[#1a1a2e]" />
-          </button>
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#1a1a2e] via-[#2a2a4e] to-[#3a3a5e] flex items-center justify-center shadow-md shadow-[#1a1a2e]/20">
-              <Sparkles size={15} className="text-white" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[#1a1a2e] font-semibold text-[15px] leading-tight">Senso</span>
-              {connectedCount > 0 && (
-                <span className="text-[10px] text-[#34c759] leading-tight">{connectedCount} servizi attivi</span>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              className="p-2 rounded-xl hover:bg-[#f3f3f5] active:scale-95 transition-all relative"
-              onClick={() => openStore(allProducts, "Tutti i prodotti")}
-            >
-              <ShoppingBag size={19} className="text-[#1a1a2e]" />
+        <div className="bg-gradient-to-r from-white to-[#fafafa] border-b border-[#f0f0f0]">
+          <div className="max-w-3xl mx-auto flex items-center justify-between px-5 py-3.5 md:px-6 lg:px-8">
+            <button type="button" className="p-2 -ml-1 rounded-xl hover:bg-[#f3f3f5] active:scale-95 transition-all" onClick={() => setSidebarOpen(true)}>
+              <Menu size={20} className="text-[#1a1a2e]" />
             </button>
-            <button type="button" className="p-2 -mr-1 rounded-xl hover:bg-[#f3f3f5] active:scale-95 transition-all" onClick={() => setEmotionalIDOpen(true)}>
-              <User size={20} className="text-[#1a1a2e]" />
-            </button>
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#1a1a2e] via-[#2a2a4e] to-[#3a3a5e] flex items-center justify-center shadow-md shadow-[#1a1a2e]/20">
+                <Sparkles size={15} className="text-white" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[#1a1a2e] font-semibold text-[15px] leading-tight">Senso</span>
+                {connectedCount > 0 && (
+                  <span className="text-[10px] text-[#34c759] leading-tight">{connectedCount} servizi attivi</span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                className="p-2 rounded-xl hover:bg-[#f3f3f5] active:scale-95 transition-all relative"
+                onClick={() => openStore(allProducts, "Tutti i prodotti")}
+              >
+                <ShoppingBag size={19} className="text-[#1a1a2e]" />
+              </button>
+              <button type="button" className="p-2 -mr-1 rounded-xl hover:bg-[#f3f3f5] active:scale-95 transition-all" onClick={() => setEmotionalIDOpen(true)}>
+                <User size={20} className="text-[#1a1a2e]" />
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Chat area */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 bg-gradient-to-b from-[#fafaf8] to-white">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto bg-gradient-to-b from-[#fafaf8] to-white">
+          <div className="max-w-3xl mx-auto px-4 py-4 md:px-6 lg:px-8">
           {messages.map((msg) => (
             <ChatMessage key={msg.id} role={msg.role} content={msg.content} timestamp={msg.timestamp} sources={msg.sources}>
               {/* Integration consent inline button */}
@@ -614,30 +617,33 @@ function AppChat({ user, logout: rawLogout }: { user: { id: number; email: strin
               </motion.div>
             )}
           </AnimatePresence>
+          </div>
         </div>
 
         {/* Input bar */}
-        <div className="px-4 pb-5 pt-3 bg-white border-t border-[#f0f0f0]/80">
-          <div className="flex items-center gap-2.5 bg-[#f3f3f5] rounded-2xl px-4 py-3 ring-1 ring-black/[0.03] focus-within:ring-[#1a1a2e]/20 transition-shadow">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-              placeholder="Scrivi qualcosa..."
-              className="flex-1 bg-transparent outline-none text-[#1a1a2e] placeholder:text-[#aeaeb2] text-[15px]"
-            />
-            <button
-              type="button"
-              onClick={handleSend}
-              disabled={!input.trim()}
-              className="w-9 h-9 rounded-full bg-gradient-to-br from-[#1a1a2e] to-[#3a3a5e] flex items-center justify-center disabled:opacity-20 transition-all active:scale-90 shadow-md shadow-[#1a1a2e]/20"
-            >
-              <Send size={14} className="text-white" />
-            </button>
+        <div className="bg-white border-t border-[#f0f0f0]/80">
+          <div className="max-w-3xl mx-auto px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 md:px-6 lg:px-8">
+            <div className="flex items-center gap-2.5 bg-[#f3f3f5] rounded-2xl px-4 py-3 ring-1 ring-black/[0.03] focus-within:ring-[#1a1a2e]/20 transition-shadow">
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                placeholder="Scrivi qualcosa..."
+                className="flex-1 bg-transparent outline-none text-[#1a1a2e] placeholder:text-[#aeaeb2] text-[15px]"
+              />
+              <button
+                type="button"
+                onClick={handleSend}
+                disabled={!input.trim()}
+                className="w-9 h-9 rounded-full bg-gradient-to-br from-[#1a1a2e] to-[#3a3a5e] flex items-center justify-center disabled:opacity-20 transition-all active:scale-90 shadow-md shadow-[#1a1a2e]/20"
+              >
+                <Send size={14} className="text-white" />
+              </button>
+            </div>
+            <p className="text-center text-[#c7c7cc] text-[11px] mt-2.5 leading-relaxed">
+              Prova: "ciao" · "calendario" · "salute" · "promemoria" · "pianifica" · "corsa" · "skincare"
+            </p>
           </div>
-          <p className="text-center text-[#c7c7cc] text-[11px] mt-2.5 leading-relaxed">
-            Prova: "ciao" · "calendario" · "salute" · "promemoria" · "pianifica" · "corsa" · "skincare"
-          </p>
         </div>
       </div>
 
@@ -651,7 +657,7 @@ function AppChat({ user, logout: rawLogout }: { user: { id: number; email: strin
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 320 }}
-              className="fixed top-0 left-0 bottom-0 z-[70] w-[min(85%,360px)] bg-white shadow-2xl flex flex-col lg:rounded-r-3xl"
+              className="fixed top-0 left-0 bottom-0 z-[70] w-full sm:w-[360px] lg:w-[400px] bg-white shadow-2xl flex flex-col sm:rounded-r-3xl"
             >
               <div className="flex items-center justify-between px-5 py-4 border-b border-[#e5e5ea]">
                 <div>

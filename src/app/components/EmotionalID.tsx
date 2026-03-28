@@ -92,7 +92,7 @@ export function EmotionalID({
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className="fixed top-0 right-0 bottom-0 z-50 w-[min(100%,420px)] bg-white flex flex-col shadow-2xl lg:rounded-l-3xl"
+            className="fixed top-0 right-0 bottom-0 z-50 w-full sm:w-[420px] lg:w-[480px] bg-white flex flex-col shadow-2xl sm:rounded-l-3xl"
           >
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#e5e5ea]">
               <div className="flex items-center gap-2 min-w-0">

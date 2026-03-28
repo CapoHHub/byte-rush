@@ -72,7 +72,7 @@ export function PopupStore({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className="fixed bottom-0 left-0 right-0 z-50 max-h-[85vh] bg-white rounded-t-[24px] flex flex-col max-w-[560px] mx-auto lg:rounded-3xl lg:bottom-auto lg:top-1/2 lg:-translate-y-1/2 lg:max-h-[80vh] lg:shadow-2xl lg:border lg:border-black/5"
+            className="fixed bottom-0 left-0 right-0 z-50 max-h-[85vh] bg-white rounded-t-[24px] flex flex-col mx-auto md:max-w-lg lg:max-w-2xl lg:rounded-3xl lg:bottom-auto lg:top-1/2 lg:-translate-y-1/2 lg:max-h-[80vh] lg:shadow-2xl lg:border lg:border-black/5"
           >
             {/* Handle */}
             <div className="flex justify-center pt-2 pb-1">
@@ -95,7 +95,7 @@ export function PopupStore({
 
             {/* Products */}
             <div className="overflow-y-auto flex-1 px-5 py-4">
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {products.map((product) => (
                   <div
                     key={product.id}
