@@ -36,7 +36,6 @@ export async function runAssistantTurn(input: EngineInput): Promise<EngineResult
 
   try {
     const gemini = await sendToGemini(input.userText, input.connectedIntegrations);
-    console.log("[Senso debug] Gemini response:", { commercialCategory: gemini.commercialCategory, needsIntegration: gemini.needsIntegration });
 
     const events: SuggestionEvent[] = [];
     let commercialOffered = false;
@@ -120,7 +119,6 @@ function handleCommercialFromGemini(
   input: EngineInput,
 ): CommercialDecision | null {
   const products = input.getProductsByCategory(category);
-  console.log("[Senso debug] Products for category", category, ":", products.length);
   if (products.length === 0) return null;
 
   const minPrice = Math.min(...products.map((p) => p.price));
@@ -137,7 +135,6 @@ function handleCommercialFromGemini(
     nightProtectionEnabled: input.nightProtectionEnabled,
   });
 
-  console.log("[Senso debug] Ethical gate:", { allow: gate.allow, code: gate.code, nightProtection: input.nightProtectionEnabled });
   if (!gate.allow) {
     return { allowed: false, blockCode: gate.code, blockHint: gate.userFacingHint };
   }

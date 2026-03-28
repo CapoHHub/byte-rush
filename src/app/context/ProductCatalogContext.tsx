@@ -31,7 +31,6 @@ export function ProductCatalogProvider({ children }: { children: ReactNode }) {
   const fetchAll = useCallback(async () => {
     try {
       const { products } = await api.products.list();
-      console.log("[Senso debug] Catalog loaded:", products.length, "products");
       setRaw(products);
     } catch (err) {
       console.error("Failed to fetch product catalog:", err);

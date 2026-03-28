@@ -1,214 +1,290 @@
-# 🛒 Senso (Byte Rush)
+# Senso (Byte Rush)
 
 > **Senso emotivo + Sensazione = Senso ai tuoi acquisti.**
 
-Senso è un assistente conversazionale personale, nato in un contesto di **Hackathon**, che si integra con i servizi quotidiani dell'utente (calendario, note, reminder) per costruire, nel tempo, una comprensione genuina dei suoi interessi e bisogni. 
+Senso e' un assistente conversazionale personale che si integra con i servizi quotidiani dell'utente (calendario, note, reminder) e, nel tempo, costruisce una comprensione genuina dei suoi interessi e bisogni.
 
-Quando emerge un'intenzione d'acquisto **reale** nel contesto della conversazione, il chatbot propone prodotti in modo trasparente, non invasivo e sempre spiegato. 
+Quando emerge un'intenzione d'acquisto **reale** nel contesto della conversazione, il chatbot propone prodotti in modo trasparente, non invasivo e sempre spiegato.
 
-*Lo shopping non è l'obiettivo dell'app — è una conseguenza naturale di una relazione di fiducia tra utente e assistente.*
-
----
-
-## 🌟 Proposta di Valore
-
-| Per l'Utente 👤 | Per il Brand 🏢 |
-| :--- | :--- |
-| **Un assistente che lo conosce davvero** | Accesso a utenti con intenzione d'acquisto reale |
-| **Suggerimenti contestuali e spiegati** | Nessun dark pattern — solo vendite in target |
-| **Controllo totale sui propri dati** | Conversioni estremamente più qualificate |
-| **Shopping senza pressione** | Brand equity visiva (stesso stile UI per tutti) |
+*Lo shopping non e' l'obiettivo dell'app — e' una conseguenza naturale di una relazione di fiducia tra utente e assistente.*
 
 ---
 
-## 🏗 Architettura Principale
+## Prerequisiti
 
-Il sistema è basato su un flusso architetturale che mette la privacy e la logica di raccomandazione etica al centro:
+- **Node.js** >= 18
+- **npm** >= 9
+- **PostgreSQL** (consigliato [Neon](https://neon.tech) per cloud gratuito, oppure locale)
+- Una **Gemini API key** (gratuita su [Google AI Studio](https://aistudio.google.com/app/apikey))
 
-```text
-┌─────────────────────────────────────┐
-│            UTENTE                   │
-│         (Chat UI)                   │
-└────────────┬────────────────────────┘
-             │
-             ▼
-┌─────────────────────────────────────┐
-│         LLM Core                    │
-│  (es. Claude API / GPT-4)           │
-│  + memoria conversazionale          │
-│  + profilo utente                   │
-└────┬──────────────┬─────────────────┘
-     │              │
-     ▼              ▼
-┌─────────┐   ┌─────────────────────┐
-│Integrazi│   │  Recommendation     │
-│oni      │   │  Engine             │
-│Calendar │   │  (Soglia Etica      │
-│Notes    │   │   inclusa)          │
-│Reminder │   └──────────┬──────────┘
-└─────────┘              │
-                         ▼
-              ┌─────────────────────┐
-              │   Product Catalog   │
-              │   API (Shopify /    │
-              │   custom)           │
-              └──────────┬──────────┘
-                         │
-                         ▼
-              ┌─────────────────────┐
-              │   Pop-up Store      │
-              │   (UI normalizzata) │
-              └─────────────────────┘
+---
+
+## Setup completo (da zero)
+
+### 1. Clona il repository
+
+```bash
+git clone https://github.com/CapoHHub/byte-rush.git
+cd byte-rush
 ```
+
+### 2. Configura le variabili d'ambiente
+
+**Frontend** — crea `.env` nella root del progetto:
+
+```bash
+cp .env.example .env
+```
+
+Apri `.env` e inserisci la tua Gemini API key:
+
+```env
+VITE_GEMINI_API_KEY=AIzaSy...tua_chiave
+```
+
+**Backend** — crea `server/.env`:
+
+```bash
+cp server/.env.example server/.env
+```
+
+Apri `server/.env` e configura:
+
+```env
+DATABASE_URL="postgresql://user:password@host/dbname?sslmode=require"
+AUTH_SECRET="una_stringa_casuale_lunga"
+```
+
+Per generare un `AUTH_SECRET` sicuro:
+
+```bash
+openssl rand -base64 32
+```
+
+### 3. Installa le dipendenze
+
+```bash
+# Frontend
+npm install
+
+# Backend
+cd server
+npm install
+cd ..
+```
+
+> `npm install` nel server esegue automaticamente `prisma generate` (postinstall).
+
+### 4. Inizializza il database
+
+```bash
+cd server
+
+# Genera il client Prisma (se non gia' fatto dal postinstall)
+npx prisma generate
+
+# Crea/sincronizza le tabelle sul DB
+npx prisma db push
+
+# (Opzionale) Popola con prodotti demo
+npm run db:seed
+
+cd ..
+```
+
+Oppure tutto in un comando:
+
+```bash
+cd server && npm run db:setup && cd ..
+```
+
+### 5. Avvia l'applicazione
+
+Servono **due terminali** (o un tool come `concurrently`):
+
+**Terminale 1 — Backend:**
+
+```bash
+cd server
+npm run dev
+```
+
+Il server Express si avvia su `http://localhost:3001`.
+
+**Terminale 2 — Frontend:**
+
+```bash
+npm run dev
+```
+
+Vite si avvia su `http://localhost:5173` (o la prima porta libera). Il proxy Vite inoltra automaticamente le chiamate `/api/*` al backend.
+
+### 6. Apri il browser
+
+Vai su `http://localhost:5173`. Puoi:
+
+- **Registrarti come utente** e usare il chatbot
+- **Saltare l'account** (modalita' ospite)
+- **Registrarti come azienda** (pulsante "Sei un'azienda?") per caricare prodotti
+
+---
+
+## Struttura del progetto
+
+```
+byte-rush/
+├── .env.example              # Template variabili frontend
+├── index.html                # Entry point HTML
+├── vite.config.ts            # Config Vite + proxy API
+├── tsconfig.json             # Config TypeScript frontend
+├── package.json              # Dipendenze frontend
+│
+├── src/
+│   ├── main.tsx              # Bootstrap React
+│   ├── vite-env.d.ts         # Tipi Vite/ImportMeta
+│   ├── styles/index.css      # Stili globali (Tailwind)
+│   └── app/
+│       ├── App.tsx                    # Componente principale (routing, chat)
+│       ├── components/
+│       │   ├── AuthPage.tsx           # Login/registrazione utente e azienda
+│       │   ├── ChatMessage.tsx        # Bolla singolo messaggio
+│       │   ├── CompanyDashboard.tsx   # Dashboard gestione prodotti azienda
+│       │   ├── EmotionalID.tsx        # Carta d'Identita (privacy dashboard)
+│       │   ├── Onboarding.tsx         # Onboarding progressivo
+│       │   ├── PopupStore.tsx         # Store etico in-app
+│       │   └── ProductCardStrip.tsx   # Anteprima prodotti inline in chat
+│       ├── context/
+│       │   ├── AuthContext.tsx         # Stato autenticazione (user/company/guest)
+│       │   └── ProductCatalogContext.tsx # Catalogo prodotti da DB
+│       ├── domain/
+│       │   ├── conversationEngine.ts  # Orchestratore turni conversazione
+│       │   ├── ethicalGate.ts         # Soglia etica (blocca suggerimenti)
+│       │   ├── geminiService.ts       # Client Gemini AI
+│       │   ├── mockIntegrations.ts    # Dati mock integrazioni
+│       │   └── types.ts              # Tipi condivisi
+│       └── lib/
+│           ├── apiService.ts          # Client API tipizzato
+│           └── sensoStorage.ts        # Persistenza localStorage
+│
+└── server/
+    ├── .env.example           # Template variabili backend
+    ├── package.json           # Dipendenze + script backend
+    ├── tsconfig.json          # Config TypeScript backend
+    ├── prisma/
+    │   ├── schema.prisma      # Schema database
+    │   └── seed.ts            # Seed dati demo
+    └── src/
+        ├── index.ts           # Entry point Express
+        ├── prisma.ts          # Istanza PrismaClient
+        ├── middleware/auth.ts  # JWT + middleware ruoli
+        └── routes/
+            ├── auth.ts        # POST /api/auth/register, login, GET /me
+            ├── company.ts     # POST /api/company/register, login, CRUD prodotti
+            ├── products.ts    # GET /api/products (pubblico)
+            ├── cart.ts        # CRUD carrello
+            └── user.ts        # Interessi, acquisti, impostazioni utente
+```
+
+---
+
+## Schema Database (Prisma)
+
+| Modello | Descrizione |
+| :--- | :--- |
+| **User** | Utente chatbot con email/password, impostazioni JSON, interessi onboarding |
+| **Company** | Azienda venditrice con auth separata |
+| **Product** | Prodotto con categoria, immagine URL, motivazione, taglie |
+| **Cart / CartItem** | Carrello utente |
+| **UserInterest** | Interessi rilevati (onboarding o inferiti da AI) |
+| **UserPurchase** | Storico acquisti per analytics etiche |
+
+Per esplorare il DB visivamente:
+
+```bash
+cd server && npx prisma studio
+```
+
+---
+
+## Script disponibili
+
+### Frontend (root)
+
+| Comando | Descrizione |
+| :--- | :--- |
+| `npm run dev` | Avvia Vite dev server |
+| `npm run build` | Build di produzione |
+
+### Backend (server/)
+
+| Comando | Descrizione |
+| :--- | :--- |
+| `npm run dev` | Avvia server con hot-reload (tsx watch) |
+| `npm run db:generate` | Rigenera Prisma Client |
+| `npm run db:push` | Sincronizza schema con DB |
+| `npm run db:seed` | Popola DB con prodotti demo |
+| `npm run db:setup` | generate + push + seed in un comando |
+| `npm run db:studio` | Apri Prisma Studio (GUI database) |
+
+---
+
+## Come funziona
+
+### Soglia Etica
+
+Il recommendation engine blocca automaticamente i suggerimenti commerciali se:
+
+- L'utente esprime stress, ansia o tristezza
+- E' attiva la protezione notturna (23:00-06:00, disattivabile)
+- Ha acquistato prodotti nella stessa categoria negli ultimi 30 giorni
+- Supererebbe il budget mensile impostato
+
+### Flusso Commerciale
+
+1. L'utente chatta con Senso (powered by Gemini AI)
+2. Gemini rileva una categoria commerciale nel contesto
+3. La soglia etica valuta se e' appropriato suggerire
+4. Se approvato, appare un messaggio con anteprima prodotti e pulsante "Esplora"
+5. Il Pop-up Store mostra i prodotti con badge "Perche' te lo mostriamo"
+
+### Ruoli
+
+- **Utente**: chatta, riceve suggerimenti, acquista, gestisce la Carta d'Identita'
+- **Azienda**: accede alla dashboard, carica prodotti con nome/prezzo/categoria/immagine URL
+- **Ospite**: usa la chat senza account, viene invitato a registrarsi solo al momento dell'acquisto
+
+---
+
+## Proposta di Valore
+
+| Per l'Utente | Per il Brand |
+| :--- | :--- |
+| Un assistente che lo conosce davvero | Accesso a utenti con intenzione d'acquisto reale |
+| Suggerimenti contestuali e spiegati | Nessun dark pattern — solo vendite in target |
+| Controllo totale sui propri dati | Conversioni estremamente piu' qualificate |
+| Shopping senza pressione | Brand equity visiva (stesso stile UI per tutti) |
 
 ---
 
 ## Archetipo
 
-L’**archetipo** di Senso non è “chatbot che vende”, ma **assistente relazionale con economia secondaria**. È il pattern che vogliamo replicare in ogni interazione coerente col prodotto.
+**Fiducia -> contesto -> gate -> invito -> store neutro -> follow-up.** Lo shopping e' la conseguenza di questo arco, non il suo centro.
 
 | Fase | Cosa succede | Principio |
 | :--- | :--- | :--- |
-| **1. Relazione** | L’utente usa l’assistente per compiti quotidiani (pianificazione, note, benessere) senza obiettivo d’acquisto. | La conversazione è il prodotto primario. |
-| **2. Contesto integrato** | Calendario, note e altre fonti (con consenso) arricchiscono il contesto solo quando servono a risposte utili. | Minimo necessario, spiegato, revocabile. |
-| **3. Segnale d’intenzione** | Conversazione + dati integrati + storico indicano un bisogno concreto (non una curiosità passeggera). | Nessun suggerimento commerciale “a freddo”. |
-| **4. Soglia etica** | Valutazione esplicita (stato emotivo, orario, acquisti recenti, saturazione suggerimenti). | Default: **non** proporre se c’è ambiguità. |
-| **5. Invito contestuale** | Messaggio naturale + azione discreta (es. “Esplora opzioni”); ignorare / “non ora” / procedere sono scelte equipollenti. | Trasparenza e rispetto del rifiuto. |
-| **6. Store normalizzato** | UI identica per tutti i brand; badge *Perché te lo mostriamo*; CTA **Acquista** e **Non ora** con parità visiva; niente urgenza artificiale. | Equità tra brand e autonomia dell’utente. |
-| **7. Post-acquisto in chat** | Ordine, spedizione, resi e feedback restano nel filo della conversazione; la Carta d’Identità si aggiorna in modo visibile. | Fidiucia come ciclo chiuso, non come funnel. |
-
-In sintesi: **fiducia → contesto → gate → invito → store neutro → follow-up**. Lo shopping è la **conseguenza** di questo arco, non il suo centro.
-
-```mermaid
-flowchart TB
-  U[Utente in chat]
-  A[Assistente: compiti quotidiani]
-  C[Contesto integrato opzionale]
-  S[Segnali intenzione]
-  E{Soglia etica}
-  I[Invito con spiegazione]
-  P[Pop-up store normalizzato]
-  F[Post-acquisto e profilo visibile]
-
-  U --> A
-  A --> C
-  C --> S
-  S --> E
-  E -->|rosso| A
-  E -->|verde| I
-  I --> P
-  P --> F
-  F --> A
-```
+| Relazione | L'utente usa l'assistente per compiti quotidiani | La conversazione e' il prodotto primario |
+| Contesto integrato | Calendario, note e altre fonti arricchiscono il contesto | Minimo necessario, spiegato, revocabile |
+| Segnale d'intenzione | Conversazione + dati indicano un bisogno concreto | Nessun suggerimento "a freddo" |
+| Soglia etica | Valutazione esplicita (stato emotivo, orario, acquisti) | Default: non proporre se c'e' ambiguita' |
+| Invito contestuale | Messaggio naturale + azione discreta | Trasparenza e rispetto del rifiuto |
+| Store normalizzato | UI identica per tutti i brand; badge di trasparenza | Equita' tra brand e autonomia utente |
+| Post-acquisto | Ordine, spedizione, resi e feedback in chat | Fiducia come ciclo chiuso |
 
 ---
 
-## 🛡️ Etica by Design: Criticità e Soluzioni
+## Metriche di Successo (Etiche)
 
-Il nostro recommendation engine integra una **Soglia Etica** intrinseca per garantire che la piattaforma non diventi mai un hub di manipolazione o di pressione all'acquisto.
-
-### 1. Manipolazione Emotiva
-* **Rischio:** Sfruttare stati emotivi negativi per spingere acquisti consolatori.
-* **Soluzione:** Il sistema blocca in automatico i suggerimenti se l'utente esprime stress, tristezza o ansia; se sono le `23:00–06:00`; o se ha già acquistato prodotti simili negli ultimi 30 giorni.
-
-### 2. Profiling Opaco
-* **Rischio:** L'utente non sa cosa il sistema sa di lui.
-* **Soluzione:** **Carta d'Identità** — una dashboard costantemente accessibile con gli interessi rilevati (e relative fonti di conversazione), storico dei suggerimenti, un bottone rapido *"Dimentica questo dato"* e export GDPR completo.
-
-### 3. Shopping Compulsivo
-* **Rischio:** La comodità e familiarità del chatbot aumentano la frequenza d'acquisto impulsivo.
-* **Soluzione:** Budget tracker opzionale. Senso non mostra *mai* due suggerimenti commerciali nella stessa sessione. Dopo 3 acquisti in 30 giorni, appare un messaggio di riflessione (non bloccante).
-
-### 4. Fiducia vs Monetizzazione
-* **Rischio:** Senso viene percepito come un venditore travestito da amico.
-* **Soluzione:** Ogni suggerimento presenta un badge **"Perché te lo mostriamo"** spiegato in linguaggio naturale. L'ordine dei prodotti è determinato *esclusivamente* dalla rilevanza contestuale, non esistono placement o priorità a pagamento per i brand.
-
-### 5. Integrazione Dati di Terze Parti
-* **Rischio:** L'accesso a calendario e note è invasivo e solleva dubbi di privacy.
-* **Soluzione:** Autenticazione OAuth2 (o mock per il prototipo) con scope e permessi minimi richiesti (es. *read-only, solo eventi futuri*). 
-
----
-
-## 🔄 Il Flusso Utente
-
-### 1. Onboarding Progressivo *(Zero Friction)*
-Si inizia a chattare senza creare account e senza fornire permessi. Il sistema raccoglie il contesto in modo colloquiale e chiede permessi (es. *"Vuoi che controlli il tuo calendario per aiutarti a pianificare la gara?"*) solo se e quando ha perfettamente senso. I consensi sono contestuali, mai presentati come un "muro" all'avvio dell'app.
-
-### 2. Uso Quotidiano
-L'utente pianifica la settimana o prende appunti liberamente. Senso analizza calendari, salute e note per fornire consigli *genuinamente gratuiti* (es. ritmo di allenamento per la gara). 
-> ⚠️ **Regola fissa:** Nessun suggerimento commerciale nelle prime interazioni. Si costruisce la fiducia prima della vendita.
-
-### 3. Rilevamento Intenzione
-Il Recommendation Engine cerca l'intersezione perfetta tra: 
-* **Pattern conversazionale** (es. ha parlato di running 3 volte di recente)
-* **Contesto integrato** (gara in calendario prossima e aumento km percorsi)
-* **Storico acquisti** (nessun acquisto recente di scarpe)
-*Se i controlli della Soglia Etica (orario, stato emotivo) sono superati su luce verde, si procede.*
-
-### 4. Suggerimento Contestuale
-Appare un messaggio naturale e non intrusivo nella chat, ad esempio: *"Noto che ti stai preparando per la gara del 14 aprile 🏃 e le corse si intensificano. Vuoi esplorare alcune opzioni per le scarpe nuove?"* Il pulsante è un invito, non una Call to Action urlata. Ignorare, dire di no o cliccare sono tre scelte ugualmente accettate e valorizzate.
-
-### 5. Il Pop-up Store Normalizzato
-Un ambiente visivo equo, pulito e uguale per tutti i brand. Sono severamente vietate le dark patterns da e-commerce:
-* ❌ Nessun Count-Down
-* ❌ Niente *"Altri 3 utenti stanno guardando..."*
-* ❌ Assenza totale di scarsità artificiale ("*Solo 1 pezzo rimasto!*")
-* ❌ Nessun cross-sell o upsell aggressivo
-
-Sono invece in evidenza: immagine del prodotto, prezzo, descrizione essenziale (no superlative, no urgenza), badge *"Perché te lo mostriamo"* e due CTA con **parità visiva**: **Acquista** / **Non ora**.
-
-### 6. Relazione Post-Acquisto
-Senso si occupa del post-vendita all'interno della medesima chat (tracking, resi fluidi, e un genuino *"Come sono andate le prime uscite con le scarpe nuove?"*). Il loop si chiude arricchendo passivamente e trasparentemente la Carta d'Identità dell'utente.
-
----
-
-## 📈 Metriche di Successo (Etiche)
-
-Senso ribalta le classiche KPI degli e-commere per dare priorità a:
-- ✅ **NPS dell'assistente:** La fiducia generata è il vero e solo indicatore di successo primario.
-- ✅ **% di suggerimenti rifiutati ("Non ora"):** Utilizzata coma spia diagnostica. Rifiuti alti = bassa rilevanza.
-- ✅ **Tasso di reso post-acquisto:** Misura diretta della qualità del suggerimento.
-- ✅ **Frequenza d'acquisto per utente:** Monitorata costantemente alla ricerca di early-warning per acquisti compulsivi.
-
----
-
-## 💻 Tech stack (repository attuale vs. target)
-
-**Implementato in questo repo (prototipo UI):**
-
-- **Frontend:** Vite, React 18, TypeScript, Tailwind CSS 4, Motion, Lucide, Sonner.
-- **Logica demo:** conversazione e cataloghi sono **mock** in memoria (keyword → risposta + `PopupStore`); non c’è ancora LLM né backend.
-
-**Obiettivo architetturale (allineato all’archetipo):**
-
-- **LLM core** con memoria conversazionale e profilo utente; **recommendation engine** con soglia etica.
-- **Integrazioni:** calendario, note, reminder (OAuth2, scope minimi); catalogo prodotti via API (es. Shopify / custom).
-- **Persistenza e Carta d’Identità:** es. backend + database e auth conformi a export GDPR e “dimentica questo dato”.
-
----
-
-## 🚀 Come eseguire in locale (Getting Started)
-
-1. **Clona il repository:**
-   ```bash
-   git clone https://github.com/CapoHHub/byte-rush.git
-   cd byte-rush
-   ```
-
-2. **Installa le dipendenze:**
-   ```bash
-   npm install
-   ```
-
-3. **Avvia il server di sviluppo:**
-   ```bash
-   npm run dev
-   ```
-   L’app Vite è in genere su `http://localhost:5173` (porta indicata nel terminale).
-
-4. **Build di produzione:**
-   ```bash
-   npm run build
-   ```
-
-Quando aggiungerai backend e LLM, documenta qui variabili d’ambiente (es. `.env.example`) e URL del servizio.
+- **NPS dell'assistente**: la fiducia e' il KPI principale
+- **% suggerimenti rifiutati**: spia di rilevanza reale
+- **Tasso di reso**: misura della qualita' del suggerimento
+- **Frequenza acquisti per utente**: monitorata per segnali compulsivi

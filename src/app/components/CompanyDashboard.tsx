@@ -81,6 +81,10 @@ export function CompanyDashboard({ company, logout }: { company: CompanyUser; lo
       toast.error("Nome e prezzo sono obbligatori");
       return;
     }
+    if (!form.categoria) {
+      toast.error("Seleziona una categoria per rendere il prodotto suggeribile in chat");
+      return;
+    }
     setSubmitting(true);
     try {
       const data = {
