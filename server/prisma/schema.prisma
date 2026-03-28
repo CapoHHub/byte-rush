@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Utente dell'app / chatbot (cliente e-commerce)
+model User {
+  id                  Int       @id @default(autoincrement())
+  email               String    @unique
+  password            String
+  nome                String
+  cognome             String
+  dataNascita         DateTime? @db.Date
+  settings            Json?
+  onboardingInterests Json?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  cart      Cart?
+  interests UserInterest[]
+  purchases UserPurchase[]
+}
+
+/// Azienda che vende sul catalogo
+model Company {
+  id             Int       @id @default(autoincrement())
+  ragioneSociale String
+  partitaIva     String?   @unique
+  email          String    @unique
+  password       String
+  telefono       String?
+  indirizzo      String?
+  cap            String?
+  citta          String?
+  paese          String?   @default("IT")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  products Product[]
+}
+
+/// Prodotto offerto da un'azienda (e-commerce)
+model Product {
+  id          Int      @id @default(autoincrement())
+  companyId   Int
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  nome        String
+  descrizione String?  @db.Text
+  prezzo      Decimal  @db.Decimal(10, 2)
+  sku         String?  @unique
+  immagine    String?
+  categoria   String?
+  motivazione String?  @db.Text
+  taglie      Json?
+  attivo      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  cartItems CartItem[]
+
+  @@index([companyId])
+  @@index([categoria])
+}
+
+/// Carrello: un carrello per utente (cliente)
+model Cart {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items CartItem[]
+}
+
+/// Riga carrello: prodotto e quantità
+model CartItem {
+  id        Int     @id @default(autoincrement())
+  cartId    Int
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int     @default(1)
+
+  @@unique([cartId, productId])
+  @@index([productId])
+}
+
+/// Interesse dell'utente (onboarding o inferito dalla conversazione)
+model UserInterest {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key       String
+  label     String
+  source    String
+  snippet   String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// Acquisto effettuato dall'utente
+model UserPurchase {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId Int?
+  category  String
+  name      String
+  priceEUR  Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
